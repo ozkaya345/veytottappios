@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(table) {
+      return table.ownerId == request.auth.uid;
+    }
+
+    function hasStatusTableLink(tableId) {
+      return exists(/databases/$(database)/documents/status_table_links/$(request.auth.uid + "_" + tableId));
+    }
+
+    // status_tables: sahibi her zaman okuyabilir (trashed dahil).
+    // Link'lenmiş kullanıcılar yalnızca trashed=false iken okuyabilir.
+    // Create sırasında ownerId zorunludur; böylece ownerId'siz (okunamayan) belge oluşmaz.
+    match /status_tables/{docId} {
+      allow read: if isSignedIn()
+        && (
+          isOwner(resource.data)
+          || (resource.data.trashed == false && hasStatusTableLink(docId))
+        );
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    // Public (signed-in) mapping: code -> tableId
+    // Used so customers can resolve a tableId before a link exists.
+    match /status_table_codes/{code} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    // Müşterinin (başka hesap) kod ile açınca kendi hesabına bağladığı kayıt.
+    match /status_table_links/{linkId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // personnel koleksiyonu: sadece sahibi okuyup yazabilir.
+    match /personnel/{docId} {
+      allow read: if isSignedIn() && isOwner(resource.data);
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isSignedIn() && isOwner(resource.data);
+    }
+
+    // Diğer koleksiyonlar için mevcut kurallarınızı koruyun/ekleyin.
+  }
+}

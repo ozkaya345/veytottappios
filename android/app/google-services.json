@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "773952414668",
+    "firebase_url": "https://mesajlar-a48b6-default-rtdb.firebaseio.com",
+    "project_id": "mesajlar-a48b6",
+    "storage_bucket": "mesajlar-a48b6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:773952414668:android:6a114a559fd3b00b16b369",
+        "android_client_info": {
+          "package_name": "com.example.officetracking"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2_dqJqV2ANw7Fo7egQayvIu8B02QPkJM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:773952414668:android:6368d054e22f3ffb16b369",
+        "android_client_info": {
+          "package_name": "com.example.ottapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2_dqJqV2ANw7Fo7egQayvIu8B02QPkJM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:773952414668:android:5e1f8bb84ce51f7416b369",
+        "android_client_info": {
+          "package_name": "com.officetracking.mesajlar"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2_dqJqV2ANw7Fo7egQayvIu8B02QPkJM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
