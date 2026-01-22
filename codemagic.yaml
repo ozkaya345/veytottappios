@@ -28,6 +28,9 @@ workflows:
         - pattern: main
           include: true
           source: true
+        - pattern: master
+          include: true
+          source: true
 
     scripts:
       - name: Flutter doctor
