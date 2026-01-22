@@ -1,0 +1,37 @@
+{
+  "@@locale": "tr",
+
+  "loginWelcomeTitle": "Hoş Geldiniz!",
+  "loginEmailOrUsernameLabel": "E-posta veya Kullanıcı Adı",
+  "loginEmailOrUsernameRequired": "E-posta/kullanıcı adı gerekli",
+  "rememberMe": "Beni hatırla",
+  "passwordLabel": "Şifre",
+  "passwordRequired": "Şifre gerekli",
+  "forgotPassword": "Şifremi Unuttum",
+  "forgotPasswordSoon": "Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.",
+  "signIn": "Giriş Yap",
+  "pleaseSignUpFirst": "Önce kayıt olun",
+  "emailNotFound": "E-posta bulunamadı",
+  "continueWithGoogle": "Google ile Devam Et",
+  "continueWithGoogleTodo": "Google ile devam et",
+  "noAccountQuestion": "Hesabınız yok mu?",
+  "signUp": "Kayıt Ol",
+
+  "registerCreateAccountTitle": "Yeni Bir Hesap Oluştur",
+  "fullNameLabel": "Ad Soyad",
+  "fullNameRequired": "Ad soyad gerekli",
+  "emailAddressLabel": "E-posta Adresi",
+  "emailRequired": "E-posta gerekli",
+  "enterValidEmail": "Geçerli bir e-posta girin",
+  "termsText": "Kullanım Şartları ve Gizlilik\nPolitikasını okudum, onaylıyorum.",
+  "acceptTermsToContinue": "Devam etmek için şartları onaylayın",
+  "createAccount": "Hesap Oluştur",
+  "alreadyMemberQuestion": "Zaten üye misiniz?",
+
+  "homeWelcome": "Hoş geldiniz",
+
+  "homeNewStatus": "Yeni Durum Ekle",
+  "homeTrackStatus": "Trans Takip",
+
+  "personnelTitle": "Personel"
+}

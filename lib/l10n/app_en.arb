@@ -1,0 +1,37 @@
+{
+  "@@locale": "en",
+
+  "loginWelcomeTitle": "Welcome!",
+  "loginEmailOrUsernameLabel": "Email or Username",
+  "loginEmailOrUsernameRequired": "Email/username is required",
+  "rememberMe": "Remember me",
+  "passwordLabel": "Password",
+  "passwordRequired": "Password is required",
+  "forgotPassword": "Forgot Password",
+  "forgotPasswordSoon": "Password reset link has been sent to your email.",
+  "signIn": "Sign In",
+  "pleaseSignUpFirst": "Please sign up first",
+  "emailNotFound": "Email not found",
+  "continueWithGoogle": "Continue with Google",
+  "continueWithGoogleTodo": "Continue with Google",
+  "noAccountQuestion": "Don't have an account?",
+  "signUp": "Sign Up",
+
+  "registerCreateAccountTitle": "Create a New Account",
+  "fullNameLabel": "Full name",
+  "fullNameRequired": "Full name is required",
+  "emailAddressLabel": "Email address",
+  "emailRequired": "Email is required",
+  "enterValidEmail": "Enter a valid email",
+  "termsText": "I have read and accept the Terms of Use and\nPrivacy Policy.",
+  "acceptTermsToContinue": "Accept the terms to continue",
+  "createAccount": "Create Account",
+  "alreadyMemberQuestion": "Already a member?",
+
+  "homeWelcome": "Welcome",
+
+  "homeNewStatus": "Add New Status",
+  "homeTrackStatus": "Track Status",
+
+  "personnelTitle": "Personnel"
+}
