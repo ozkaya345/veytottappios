@@ -1,4 +1,4 @@
-# ottapp
+# OTT
 
 A new Flutter project.
 

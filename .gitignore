@@ -33,6 +33,12 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Local release artifacts / exports
+/releases/
+
+# Local backup files
+/lib/firebase_options.backup.dart
+
 # Symbolication related
 app.*.symbols
 

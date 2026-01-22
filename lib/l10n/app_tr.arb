@@ -4,15 +4,16 @@
   "loginWelcomeTitle": "Hoş Geldiniz!",
   "loginEmailOrUsernameLabel": "E-posta veya Kullanıcı Adı",
   "loginEmailOrUsernameRequired": "E-posta/kullanıcı adı gerekli",
+  "rememberMe": "Beni hatırla",
   "passwordLabel": "Şifre",
   "passwordRequired": "Şifre gerekli",
   "forgotPassword": "Şifremi Unuttum",
-  "forgotPasswordSoon": "Şifremi unuttum (yakında)",
+  "forgotPasswordSoon": "Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.",
   "signIn": "Giriş Yap",
   "pleaseSignUpFirst": "Önce kayıt olun",
   "emailNotFound": "E-posta bulunamadı",
   "continueWithGoogle": "Google ile Devam Et",
-  "continueWithGoogleTodo": "Google ile devam et (TODO)",
+  "continueWithGoogleTodo": "Google ile devam et",
   "noAccountQuestion": "Hesabınız yok mu?",
   "signUp": "Kayıt Ol",
 
@@ -30,7 +31,7 @@
   "homeWelcome": "Hoş geldiniz",
 
   "homeNewStatus": "Yeni Durum Ekle",
-  "homeTrackStatus": "Durum Takip",
+  "homeTrackStatus": "Trans Takip",
 
   "personnelTitle": "Personel"
 }

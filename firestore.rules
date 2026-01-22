@@ -20,7 +20,7 @@ service cloud.firestore {
       allow read: if isSignedIn()
         && (
           isOwner(resource.data)
-          || (resource.data.trashed == false && hasStatusTableLink(docId))
+          || (resource.data.trashed != true && hasStatusTableLink(docId))
         );
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update, delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;

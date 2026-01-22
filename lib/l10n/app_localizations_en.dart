@@ -18,6 +18,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginEmailOrUsernameRequired => 'Email/username is required';
 
   @override
+  String get rememberMe => 'Remember me';
+
+  @override
   String get passwordLabel => 'Password';
 
   @override
@@ -27,7 +30,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgotPassword => 'Forgot Password';
 
   @override
-  String get forgotPasswordSoon => 'Forgot password (coming soon)';
+  String get forgotPasswordSoon =>
+      'Password reset link has been sent to your email.';
 
   @override
   String get signIn => 'Sign In';
@@ -42,7 +46,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get continueWithGoogle => 'Continue with Google';
 
   @override
-  String get continueWithGoogleTodo => 'Continue with Google (TODO)';
+  String get continueWithGoogleTodo => 'Continue with Google';
 
   @override
   String get noAccountQuestion => 'Don\'t have an account?';

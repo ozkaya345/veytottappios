@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/navigation/app_routes.dart';
+import '../../data/services/admin_access_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -71,14 +72,21 @@ class ProfileScreen extends StatelessWidget {
                           snapshot.data ?? FirebaseAuth.instance.currentUser;
                       final displayName = u?.displayName?.trim();
                       final email = u?.email?.trim();
+                      final photoUrl = u?.photoURL?.trim();
                       final hasPhone2FA =
                           u?.providerData.any((p) => p.providerId == 'phone') ??
                           false;
                       return Row(
                         children: [
-                          const CircleAvatar(
+                          CircleAvatar(
                             radius: 28,
-                            child: Icon(Icons.person),
+                            backgroundImage:
+                                (photoUrl != null && photoUrl.isNotEmpty)
+                                ? NetworkImage(photoUrl)
+                                : null,
+                            child: (photoUrl == null || photoUrl.isEmpty)
+                                ? const Icon(Icons.person)
+                                : null,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -132,14 +140,6 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   _PillButton(
-                    label: 'Avatar',
-                    height: 56,
-                    onPressed: () {
-                      Navigator.of(context).pushNamed(AppRoutes.avatar);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _PillButton(
                     label: 'Çöp Kutusu',
                     height: 56,
                     onPressed: () {
@@ -151,6 +151,7 @@ class ProfileScreen extends StatelessWidget {
                     label: 'Çıkış Yap',
                     height: 56,
                     onPressed: () async {
+                      AdminAccessService.lock();
                       try {
                         await FirebaseAuth.instance.signOut();
                       } catch (_) {}

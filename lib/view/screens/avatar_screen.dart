@@ -13,77 +13,133 @@ class AvatarScreen extends StatefulWidget {
 }
 
 class _AvatarScreenState extends State<AvatarScreen> {
-  final _urlController = TextEditingController();
   bool _isSaving = false;
   String? _message;
   final ImagePicker _picker = ImagePicker();
+  String? _photoUrl;
 
   @override
   void initState() {
     super.initState();
     final user = FirebaseAuth.instance.currentUser;
-    _urlController.text = user?.photoURL ?? '';
+    _photoUrl = user?.photoURL;
+  }
+
+  bool get _supportsGalleryPicker {
+    if (kIsWeb) return true;
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.android => true,
+      TargetPlatform.iOS => true,
+      TargetPlatform.macOS => true,
+      _ => false,
+    };
+  }
+
+  String _contentTypeFromExtension(String? ext) {
+    final e = (ext ?? '').toLowerCase().trim();
+    return switch (e) {
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      'gif' => 'image/gif',
+      'heic' || 'heif' => 'image/heic',
+      'jpg' || 'jpeg' => 'image/jpeg',
+      _ => 'image/jpeg',
+    };
+  }
+
+  String? _extensionFromName(String? name) {
+    if (name == null) return null;
+    final dot = name.lastIndexOf('.');
+    if (dot <= 0 || dot == name.length - 1) return null;
+    return name.substring(dot + 1);
   }
 
   Future<void> _pickFromGallery() async {
     setState(() => _message = null);
     try {
+      setState(() => _isSaving = true);
+      if (!_supportsGalleryPicker) {
+        // Windows/Linux gibi platformlarda image_picker galeri seçimi plugin olarak yok.
+        await _pickFromFiles();
+        return;
+      }
       final XFile? xfile = await _picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 1024,
       );
-      if (xfile == null) return;
-      final Uint8List bytes = await xfile.readAsBytes();
-      final String url = await StorageService.uploadAvatar(
-        bytes,
-        contentType: 'image/jpeg',
-      );
-      setState(() {
-        _message = 'Avatar güncellendi';
-        _urlController.text = url;
-      });
-    } catch (e) {
-      setState(() => _message = 'Galeri hatası: $e');
-    }
-  }
-
-  Future<void> _pickFromFiles() async {
-    setState(() => _message = null);
-    try {
-      final FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        withData: true,
-      );
-      if (result == null) return;
-      final PlatformFile file = result.files.first;
-      final Uint8List? bytes = file.bytes;
-      if (bytes == null) {
-        setState(() => _message = 'Dosya okunamadı');
+      if (xfile == null) {
+        setState(() => _isSaving = false);
         return;
       }
-      final String contentType = (file.extension?.toLowerCase() == 'png')
-          ? 'image/png'
-          : 'image/jpeg';
+      final Uint8List bytes = await xfile.readAsBytes();
+      final contentType =
+          xfile.mimeType ??
+          _contentTypeFromExtension(_extensionFromName(xfile.name));
       final String url = await StorageService.uploadAvatar(
         bytes,
         contentType: contentType,
       );
       setState(() {
         _message = 'Avatar güncellendi';
-        _urlController.text = url;
+        _photoUrl = url;
+        _isSaving = false;
       });
     } catch (e) {
-      setState(() => _message = 'Dosya seçimi hatası: $e');
+      setState(() {
+        _message = 'Galeri hatası: $e';
+        _isSaving = false;
+      });
     }
   }
 
-  @override
-  void dispose() {
-    _urlController.dispose();
-    super.dispose();
+  Future<void> _pickFromFiles() async {
+    setState(() => _message = null);
+    try {
+      setState(() => _isSaving = true);
+      final FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        withData: true,
+        withReadStream: true,
+      );
+      if (result == null) {
+        setState(() => _isSaving = false);
+        return;
+      }
+      final PlatformFile file = result.files.first;
+      Uint8List? bytes = file.bytes;
+      if (bytes == null && file.readStream != null) {
+        final buffer = <int>[];
+        await for (final chunk in file.readStream!) {
+          buffer.addAll(chunk);
+        }
+        bytes = Uint8List.fromList(buffer);
+      }
+      if (bytes == null) {
+        setState(() {
+          _message = 'Dosya okunamadı';
+          _isSaving = false;
+        });
+        return;
+      }
+      final String contentType = _contentTypeFromExtension(file.extension);
+      final String url = await StorageService.uploadAvatar(
+        bytes,
+        contentType: contentType,
+      );
+      setState(() {
+        _message = 'Avatar güncellendi';
+        _photoUrl = url;
+        _isSaving = false;
+      });
+    } catch (e) {
+      setState(() {
+        _message = 'Dosya seçimi hatası: $e';
+        _isSaving = false;
+      });
+    }
   }
 
-  Future<void> _save() async {
+  Future<void> _removeAvatar() async {
     setState(() {
       _isSaving = true;
       _message = null;
@@ -96,23 +152,27 @@ class _AvatarScreenState extends State<AvatarScreen> {
           message: 'Oturum bulunamadı',
         );
       }
-      await user.updatePhotoURL(
-        _urlController.text.trim().isEmpty ? null : _urlController.text.trim(),
-      );
+
+      // Storage’daki avatar dosyasını da temizlemeyi dene (başarısız olsa bile devam).
+      try {
+        await StorageService.deleteAvatar(uid: user.uid);
+      } catch (_) {}
+
+      await user.updatePhotoURL(null);
       await user.reload();
       setState(() {
-        _message = 'Avatar güncellendi';
+        _photoUrl = null;
+        _message = 'Avatar kaldırıldı';
+        _isSaving = false;
       });
     } on FirebaseAuthException catch (e) {
       setState(() {
         _message = e.message ?? 'İşlem başarısız';
+        _isSaving = false;
       });
     } catch (_) {
       setState(() {
         _message = 'Beklenmedik bir hata oluştu';
-      });
-    } finally {
-      setState(() {
         _isSaving = false;
       });
     }
@@ -120,9 +180,7 @@ class _AvatarScreenState extends State<AvatarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
     final theme = Theme.of(context);
-    final photoUrl = user?.photoURL;
     final primary = theme.colorScheme.primary;
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -167,22 +225,19 @@ class _AvatarScreenState extends State<AvatarScreen> {
                             alpha: 0.2,
                           ),
                           backgroundImage:
-                              (photoUrl != null && photoUrl.isNotEmpty)
-                              ? NetworkImage(photoUrl)
+                              (_photoUrl != null && _photoUrl!.isNotEmpty)
+                              ? NetworkImage(_photoUrl!)
                               : null,
-                          child: (photoUrl == null || photoUrl.isEmpty)
+                          child: (_photoUrl == null || _photoUrl!.isEmpty)
                               ? const Icon(Icons.person, size: 32)
                               : null,
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: TextField(
-                            controller: _urlController,
-                            decoration: const InputDecoration(
-                              labelText: 'Avatar URL',
-                              border: OutlineInputBorder(),
-                              helperText:
-                                  'Bir resim URL’si girin (örn. https://...)',
+                          child: Text(
+                            'Fotoğraf seçince otomatik kaydedilir.',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.85),
                             ),
                           ),
                         ),
@@ -192,9 +247,17 @@ class _AvatarScreenState extends State<AvatarScreen> {
                     Row(
                       children: [
                         OutlinedButton.icon(
-                          onPressed: _isSaving ? null : _pickFromGallery,
+                          onPressed: _isSaving
+                              ? null
+                              : (_supportsGalleryPicker
+                                    ? _pickFromGallery
+                                    : _pickFromFiles),
                           icon: const Icon(Icons.photo_library),
-                          label: const Text('Galeriden Seç'),
+                          label: Text(
+                            _supportsGalleryPicker
+                                ? 'Galeriden Seç'
+                                : 'Dosyadan Seç',
+                          ),
                         ),
                         const SizedBox(width: 12),
                         OutlinedButton.icon(
@@ -203,42 +266,23 @@ class _AvatarScreenState extends State<AvatarScreen> {
                           label: Text(kIsWeb ? 'Dosya Seç' : 'Dosyadan Seç'),
                         ),
                         const Spacer(),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: _isSaving ? null : _save,
-                              icon: const Icon(Icons.save),
-                              label: _isSaving
-                                  ? const SizedBox(
-                                      height: 16,
-                                      width: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Text('Kaydet'),
-                            ),
-                            const SizedBox(height: 8),
-                            TextButton(
-                              onPressed: _isSaving
-                                  ? null
-                                  : () {
-                                      _urlController.clear();
-                                      _save();
-                                    },
-                              child: const Text('Temizle'),
-                            ),
-                          ],
-                        ),
+                        if (_isSaving)
+                          const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        else
+                          TextButton(
+                            onPressed: _photoUrl == null ? null : _removeAvatar,
+                            child: const Text('Kaldır'),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 12),
                     if (_message != null) Text(_message!),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Not: Yerel dosya/galeri seçimi için image_picker veya file_picker eklentisi eklenebilir.',
-                    ),
+                    const SizedBox.shrink(),
                   ],
                 ),
               ),

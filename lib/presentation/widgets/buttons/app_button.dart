@@ -136,6 +136,19 @@ class AppButton extends StatelessWidget {
       );
     }
 
+    final double iconSize = switch (size) {
+      AppButtonSize.sm => 18,
+      AppButtonSize.md => 20,
+      AppButtonSize.lg => 22,
+    };
+
+    final Color iconColor = switch (variant) {
+      AppButtonVariant.primary => cs.onPrimary,
+      AppButtonVariant.secondary => cs.onSecondaryContainer,
+      AppButtonVariant.outline => cs.primary,
+      AppButtonVariant.text => cs.primary,
+    };
+
     final children = <Widget>[];
     if (leading != null) {
       children.add(leading!);
@@ -147,10 +160,13 @@ class AppButton extends StatelessWidget {
       children.add(trailing!);
     }
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: children,
+    return IconTheme.merge(
+      data: IconThemeData(size: iconSize, color: iconColor),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: children,
+      ),
     );
   }
 
@@ -161,10 +177,18 @@ class AppButton extends StatelessWidget {
       AppButtonSize.md => Theme.of(context).textTheme.labelMedium!,
       AppButtonSize.lg => Theme.of(context).textTheme.labelLarge!,
     };
-    return Text(label!, style: textStyle);
+    return Text(
+      label!,
+      style: textStyle.copyWith(
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.2,
+      ),
+    );
   }
 
   ButtonStyle _buildStyle(ThemeData theme) {
+    final cs = theme.colorScheme;
+
     final double effectiveHeight =
         height ??
         switch (size) {
@@ -179,10 +203,39 @@ class AppButton extends StatelessWidget {
       AppButtonSize.lg => const EdgeInsets.symmetric(horizontal: 20),
     };
 
-    final BorderSide outline = BorderSide(color: theme.colorScheme.outline);
+    final BorderSide outline = BorderSide(color: cs.outline);
+
+    final overlayColor = WidgetStateProperty.resolveWith<Color?>((states) {
+      if (states.contains(WidgetState.disabled)) return null;
+      final Color base = switch (variant) {
+        AppButtonVariant.primary => cs.onPrimary,
+        AppButtonVariant.secondary => cs.onSecondaryContainer,
+        AppButtonVariant.outline => cs.primary,
+        AppButtonVariant.text => cs.primary,
+      };
+      if (states.contains(WidgetState.pressed)) {
+        return base.withValues(alpha: 0.18);
+      }
+      if (states.contains(WidgetState.hovered) ||
+          states.contains(WidgetState.focused)) {
+        return base.withValues(alpha: 0.12);
+      }
+      return null;
+    });
+
+    final elevation = WidgetStateProperty.resolveWith<double>((states) {
+      if (variant == AppButtonVariant.outline || variant == AppButtonVariant.text) {
+        return 0;
+      }
+      if (states.contains(WidgetState.disabled)) return 0;
+      if (states.contains(WidgetState.pressed)) return 2;
+      if (states.contains(WidgetState.hovered)) return 1;
+      return 0;
+    });
 
     return ButtonStyle(
       padding: WidgetStateProperty.all(padding),
+      overlayColor: overlayColor,
       minimumSize: expand
           ? null
           : WidgetStateProperty.all(Size(0, effectiveHeight)),
@@ -192,13 +245,15 @@ class AppButton extends StatelessWidget {
               // Enforce height only; width comes from parent or wrapper.
               return Size.fromHeight(effectiveHeight);
             }),
+      elevation: elevation,
+      shadowColor: WidgetStateProperty.all(cs.primary.withValues(alpha: 0.35)),
       side: switch (variant) {
         AppButtonVariant.outline => WidgetStateProperty.all(outline),
         _ => null,
       },
       // Keep shape consistent across variants.
       shape: WidgetStateProperty.all(
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }

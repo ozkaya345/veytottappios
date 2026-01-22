@@ -25,10 +25,24 @@ final class AppTheme {
       brightness: Brightness.dark,
       seedColor: seed,
     );
+    // Bazı platform/renderer kombinasyonlarında (özellikle web) ikonların
+    // görünmemesi genelde IconTheme/AppBarTheme renklerinin beklenmedik şekilde
+    // override edilmesinden kaynaklanır. Burada açıkça set ederek deterministik
+    // hale getiriyoruz.
+    final iconTheme = IconThemeData(color: scheme.onSurface, size: 22);
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: Colors.black,
+      iconTheme: iconTheme,
+      primaryIconTheme: IconThemeData(color: scheme.onPrimary, size: 22),
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: scheme.onSurface,
+        iconTheme: iconTheme,
+        actionsIconTheme: iconTheme,
+      ),
     );
   }
 }

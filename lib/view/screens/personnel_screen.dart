@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -43,8 +43,15 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
         title: const Text('Sil'),
         content: const Text('Bu personel kaydı silinsin mi?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('İptal')),
-          ElevatedButton.icon(onPressed: () => Navigator.pop(ctx, true), icon: const Icon(Icons.delete), label: const Text('Sil')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('İptal'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.delete),
+            label: const Text('Sil'),
+          ),
         ],
       ),
     );
@@ -55,7 +62,9 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Çöp kutusuna taşındı')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Çöp kutusuna taşındı')));
   }
 
   Future<void> _openForm({DocumentSnapshot<Map<String, dynamic>>? doc}) async {
@@ -66,10 +75,7 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
     );
   }
 
-  Widget _build3dCard({
-    required BuildContext context,
-    required Widget child,
-  }) {
+  Widget _build3dCard({required BuildContext context, required Widget child}) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
 
@@ -118,7 +124,11 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                 if (data['photoUrl'] != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Image.network(data['photoUrl'], height: 160, fit: BoxFit.cover),
+                    child: Image.network(
+                      data['photoUrl'],
+                      height: 160,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 _kv('Tarih', data['date'] ?? ''),
                 _kv('Adres', data['address'] ?? ''),
@@ -131,7 +141,10 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Kapat')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Kapat'),
+            ),
           ],
         );
       },
@@ -210,7 +223,9 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                               if (error is FirebaseException &&
                                   error.code == 'failed-precondition' &&
                                   !_useUnorderedFallback) {
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
                                   if (!mounted) return;
                                   setState(() => _useUnorderedFallback = true);
                                 });
@@ -218,8 +233,9 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
 
                               final docs = snapshot.data?.docs ?? const [];
                               final showSpinner =
-                                  snapshot.connectionState == ConnectionState.waiting &&
-                                      docs.isEmpty;
+                                  snapshot.connectionState ==
+                                      ConnectionState.waiting &&
+                                  docs.isEmpty;
                               if (showSpinner) {
                                 return const Center(
                                   child: CircularProgressIndicator(),
@@ -245,45 +261,50 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                                   final d = docs[idx];
                                   final data = d.data();
                                   final id = d.id;
-                                  final name =
-                                      (data['name'] as String?)?.trim();
-                                  final date =
-                                      (data['date'] as String?)?.trim();
-                                  final plate =
-                                      (data['plate'] as String?)?.trim();
-                                  final photoUrl =
-                                      (data['photoUrl'] as String?)?.trim();
+                                  final name = (data['name'] as String?)
+                                      ?.trim();
+                                  final date = (data['date'] as String?)
+                                      ?.trim();
+                                  final plate = (data['plate'] as String?)
+                                      ?.trim();
+                                  final photoUrl = (data['photoUrl'] as String?)
+                                      ?.trim();
 
                                   return GestureDetector(
                                     onTap: () => _showDetails(data),
                                     onLongPress: () async {
                                       final action =
                                           await showModalBottomSheet<String>(
-                                        context: context,
-                                        builder: (ctx) => SafeArea(
-                                          child: Wrap(
-                                            children: [
-                                              ListTile(
-                                                leading:
-                                                    const Icon(Icons.edit),
-                                                title:
-                                                    const Text('Düzenle'),
-                                                onTap: () =>
-                                                    Navigator.pop(ctx, 'edit'),
+                                            context: context,
+                                            builder: (ctx) => SafeArea(
+                                              child: Wrap(
+                                                children: [
+                                                  ListTile(
+                                                    leading: const Icon(
+                                                      Icons.edit,
+                                                    ),
+                                                    title: const Text(
+                                                      'Düzenle',
+                                                    ),
+                                                    onTap: () => Navigator.pop(
+                                                      ctx,
+                                                      'edit',
+                                                    ),
+                                                  ),
+                                                  ListTile(
+                                                    leading: const Icon(
+                                                      Icons.delete,
+                                                    ),
+                                                    title: const Text('Sil'),
+                                                    onTap: () => Navigator.pop(
+                                                      ctx,
+                                                      'delete',
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                              ListTile(
-                                                leading:
-                                                    const Icon(Icons.delete),
-                                                title: const Text('Sil'),
-                                                onTap: () => Navigator.pop(
-                                                  ctx,
-                                                  'delete',
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
+                                            ),
+                                          );
                                       if (action == 'edit') {
                                         await _openForm(doc: d);
                                       } else if (action == 'delete') {
@@ -339,11 +360,13 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                                                   overflow:
                                                       TextOverflow.ellipsis,
                                                   style: theme
-                                                      .textTheme.titleMedium
+                                                      .textTheme
+                                                      .titleMedium
                                                       ?.copyWith(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.w800,
-                                                  ),
+                                                        color: Colors.white,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Text(
@@ -436,7 +459,10 @@ class _PersonnelFormDialogState extends State<_PersonnelFormDialog> {
 
   Future<void> _pickPhoto() async {
     final picker = ImagePicker();
-    final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final img = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
     if (img != null) setState(() => _pickedImage = img);
   }
 
@@ -447,7 +473,9 @@ class _PersonnelFormDialogState extends State<_PersonnelFormDialog> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Oturum açmadan personel kaydı eklenemez.')),
+        const SnackBar(
+          content: Text('Oturum açmadan personel kaydı eklenemez.'),
+        ),
       );
       return;
     }
@@ -498,20 +526,28 @@ class _PersonnelFormDialogState extends State<_PersonnelFormDialog> {
 
         if (pickedImage != null) {
           try {
-            final file = File(pickedImage.path);
-            final storageRef =
-                FirebaseStorage.instance.ref('personnel/$docId.jpg');
-            await storageRef.putFile(file);
-            final url = await storageRef.getDownloadURL();
-            await ref.doc(docId).set(
-              {
-                'photoUrl': url,
-                'updatedAt': FieldValue.serverTimestamp(),
-              },
-              SetOptions(merge: true),
+            final bytes = await pickedImage.readAsBytes();
+            final storageRef = FirebaseStorage.instance.ref(
+              'personnel/$docId.jpg',
             );
+            await storageRef.putData(
+              bytes,
+              SettableMetadata(
+                contentType: pickedImage.mimeType ?? 'image/jpeg',
+                cacheControl: 'public,max-age=0',
+              ),
+            );
+            final url = await storageRef.getDownloadURL();
+            final cacheBustedUrl =
+                '$url${url.contains('?') ? '&' : '?'}v=${DateTime.now().millisecondsSinceEpoch}';
+            await ref.doc(docId).set({
+              'photoUrl': cacheBustedUrl,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
           } catch (e) {
-            debugPrint('Fotoğraf yükleme başarısız: $e');
+            if (kDebugMode) {
+              debugPrint('Fotoğraf yükleme başarısız: $e');
+            }
           }
         }
       } on FirebaseException catch (e) {
@@ -552,9 +588,14 @@ class _PersonnelFormDialogState extends State<_PersonnelFormDialog> {
             const SizedBox(height: 8),
             TextField(
               controller: _date,
-              decoration: const InputDecoration(labelText: 'Tarih (gg/aa/yyyy)'),
+              decoration: const InputDecoration(
+                labelText: 'Tarih (gg/aa/yyyy)',
+              ),
               keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly, _DateSlashFormatter()],
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                _DateSlashFormatter(),
+              ],
             ),
             const SizedBox(height: 8),
             TextField(
@@ -564,41 +605,53 @@ class _PersonnelFormDialogState extends State<_PersonnelFormDialog> {
               maxLines: 4,
             ),
             const SizedBox(height: 8),
-            Row(children: [
-              Expanded(
-                child: TextField(
-                  controller: _salary,
-                  decoration: const InputDecoration(labelText: 'Maaş'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _salary,
+                    decoration: const InputDecoration(labelText: 'Maaş'),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  controller: _debt,
-                  decoration: const InputDecoration(labelText: 'Borç'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _debt,
+                    decoration: const InputDecoration(labelText: 'Borç'),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
                 ),
-              ),
-            ]),
+              ],
+            ),
             const SizedBox(height: 8),
-            Row(children: [
-              Expanded(
-                child: TextField(
-                  controller: _receivable,
-                  decoration: const InputDecoration(labelText: 'Alacak'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _receivable,
+                    decoration: const InputDecoration(labelText: 'Alacak'),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  controller: _expenses,
-                  decoration: const InputDecoration(labelText: 'Harcamalar'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _expenses,
+                    decoration: const InputDecoration(labelText: 'Harcamalar'),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
                 ),
-              ),
-            ]),
+              ],
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _plate,
@@ -614,16 +667,32 @@ class _PersonnelFormDialogState extends State<_PersonnelFormDialog> {
                   label: const Text('Fotoğraf'),
                 ),
                 const SizedBox(width: 12),
-                if (_pickedImage != null) Text('Seçildi', style: theme.textTheme.bodyMedium),
+                if (_pickedImage != null)
+                  Text('Seçildi', style: theme.textTheme.bodyMedium),
               ],
             ),
           ],
         ),
       ),
       actions: [
-        if (_saving) const Padding(padding: EdgeInsets.only(right: 12), child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
-        TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('İptal')),
-        ElevatedButton.icon(onPressed: _saving ? null : _save, icon: const Icon(Icons.save), label: Text(_saving ? 'Kaydediliyor…' : 'Kaydet')),
+        if (_saving)
+          const Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context),
+          child: const Text('İptal'),
+        ),
+        ElevatedButton.icon(
+          onPressed: _saving ? null : _save,
+          icon: const Icon(Icons.save),
+          label: Text(_saving ? 'Kaydediliyor…' : 'Kaydet'),
+        ),
       ],
     );
   }
@@ -631,7 +700,10 @@ class _PersonnelFormDialogState extends State<_PersonnelFormDialog> {
 
 class _DateSlashFormatter extends TextInputFormatter {
   @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     var text = newValue.text.replaceAll('/', '');
     if (text.length > 8) text = text.substring(0, 8);
     final buf = StringBuffer();

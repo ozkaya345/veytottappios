@@ -116,6 +116,12 @@ abstract class AppLocalizations {
   /// **'Email/username is required'**
   String get loginEmailOrUsernameRequired;
 
+  /// No description provided for @rememberMe.
+  ///
+  /// In en, this message translates to:
+  /// **'Remember me'**
+  String get rememberMe;
+
   /// No description provided for @passwordLabel.
   ///
   /// In en, this message translates to:
@@ -137,7 +143,7 @@ abstract class AppLocalizations {
   /// No description provided for @forgotPasswordSoon.
   ///
   /// In en, this message translates to:
-  /// **'Forgot password (coming soon)'**
+  /// **'Password reset link has been sent to your email.'**
   String get forgotPasswordSoon;
 
   /// No description provided for @signIn.
@@ -167,7 +173,7 @@ abstract class AppLocalizations {
   /// No description provided for @continueWithGoogleTodo.
   ///
   /// In en, this message translates to:
-  /// **'Continue with Google (TODO)'**
+  /// **'Continue with Google'**
   String get continueWithGoogleTodo;
 
   /// No description provided for @noAccountQuestion.

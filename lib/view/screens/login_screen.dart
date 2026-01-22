@@ -4,6 +4,7 @@ import 'package:ottapp/l10n/app_localizations.dart';
 
 import '../../core/navigation/app_routes.dart';
 import '../../data/services/firebase_bootstrap.dart';
+import '../../data/services/local_login_store.dart';
 import '../../presentation/widgets/buttons/app_button.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -18,6 +19,27 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailOrUsernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _rememberEmail = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreRememberedEmail();
+  }
+
+  Future<void> _restoreRememberedEmail() async {
+    final enabled = await LocalLoginStore.isRememberEmailEnabled();
+    final email = await LocalLoginStore.loadRememberedEmail();
+
+    if (!mounted) return;
+
+    setState(() {
+      _rememberEmail = enabled;
+      if (email != null) {
+        _emailOrUsernameController.text = email;
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -199,10 +221,52 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                         ),
                         const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Checkbox.adaptive(
+                              value: _rememberEmail,
+                              activeColor: primary,
+                              onChanged: (v) async {
+                                final next = v ?? false;
+                                setState(() => _rememberEmail = next);
+                                await LocalLoginStore.setRememberEmail(
+                                  enabled: next,
+                                  email: next
+                                      ? _emailOrUsernameController.text
+                                      : null,
+                                );
+                              },
+                            ),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () async {
+                                  final next = !_rememberEmail;
+                                  setState(() => _rememberEmail = next);
+                                  await LocalLoginStore.setRememberEmail(
+                                    enabled: next,
+                                    email: next
+                                        ? _emailOrUsernameController.text
+                                        : null,
+                                  );
+                                },
+                                child: Text(
+                                  l10n.rememberMe,
+                                  style: TextStyle(color: mutedText),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                         TextActionButton(
                           label: l10n.forgotPassword,
-                          onPressed: () =>
-                              showTodoSnack(l10n.forgotPasswordSoon),
+                          onPressed: () {
+                            final v = _emailOrUsernameController.text.trim();
+                            final initialEmail = v.contains('@') ? v : '';
+                            Navigator.of(context).pushNamed(
+                              AppRoutes.forgotPassword,
+                              arguments: initialEmail,
+                            );
+                          },
                         ),
                         const SizedBox(height: 10),
                         PrimaryButton(
@@ -217,6 +281,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             final email = _emailOrUsernameController.text
                                 .trim();
                             final password = _passwordController.text;
+
+                            await LocalLoginStore.setRememberEmail(
+                              enabled: _rememberEmail,
+                              email: email,
+                            );
 
                             try {
                               await FirebaseBootstrap.init();

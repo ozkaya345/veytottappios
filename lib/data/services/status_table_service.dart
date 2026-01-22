@@ -74,8 +74,11 @@ class StatusTableService {
     required List<List<String>> data,
     required String title,
     List<String>? colHeaders,
+    String? ownerIdOverride,
   }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = (ownerIdOverride != null && ownerIdOverride.trim().isNotEmpty)
+        ? ownerIdOverride.trim()
+        : FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || uid.isEmpty) {
       throw FirebaseAuthException(code: 'no-user', message: 'Oturum bulunamadı');
     }

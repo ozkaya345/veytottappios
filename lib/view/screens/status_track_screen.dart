@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
@@ -5,15 +6,20 @@ import 'package:csv/csv.dart';
 import 'dart:async';
 import '../../data/services/status_table_service.dart';
 import '../../core/navigation/app_routes.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io' as io;
+import '../../core/utils/save_text_file.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class StatusTrackScreen extends StatefulWidget {
-  const StatusTrackScreen({super.key, this.tableId, this.initialTitle});
+  const StatusTrackScreen({
+    super.key,
+    this.tableId,
+    this.initialTitle,
+    this.readOnly = true,
+  });
 
   final String? tableId;
   final String? initialTitle;
+  final bool readOnly;
 
   @override
   State<StatusTrackScreen> createState() => _StatusTrackScreenState();
@@ -21,8 +27,11 @@ class StatusTrackScreen extends StatefulWidget {
 
 class _StatusTrackScreenState extends State<StatusTrackScreen>
     with WidgetsBindingObserver {
-  static const int _maxCols = 20;
+  static const int _maxCols = 10;
   static const int _maxRows = 100;
+
+  static const int _minCols = 1;
+  static const int _minRows = 1;
 
   int _cols = 8; // başlangıç sütun sayısı
   int _rowsCount = 12; // başlangıç satır sayısı
@@ -36,7 +45,7 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
   String? _tableTitle;
   String? _tableCode;
   String? _currentTableId;
-  bool _isReadOnly = false;
+  bool _isReadOnly = true;
 
   bool _dirty = false;
   bool _autoSaveInProgress = false;
@@ -68,6 +77,8 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    _isReadOnly = widget.readOnly;
     _cellCtrls = List.generate(
       _rowsCount,
       (_) => List.generate(_cols, (_) => TextEditingController()),
@@ -90,6 +101,7 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
         if (data != null && mounted) {
           final rows = (data['rows'] as num).toInt();
           final cols = (data['cols'] as num).toInt();
+          final cappedCols = cols.clamp(1, _maxCols);
           final list = (data['data'] as List)
               .map<List<String>>(
                 (row) => (row as List).map((e) => e.toString()).toList(),
@@ -100,17 +112,13 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
           final colHeaders = (storedHeaders is List)
               ? storedHeaders.map((e) => e?.toString() ?? '').toList()
               : <String>[];
-          final ownerId = data['ownerId'] as String?;
-          final uid = FirebaseAuth.instance.currentUser?.uid;
           setState(() {
             _tableTitle = (data['title'] as String?)?.trim();
             final code = (data['code'] as String?)?.trim();
             _tableCode = (code != null && code.isNotEmpty) ? code : id;
             _rowsCount = rows;
-            _cols = cols;
-            _isReadOnly = (ownerId != null && uid != null)
-                ? (ownerId != uid)
-                : false;
+            _cols = cappedCols;
+            _isReadOnly = widget.readOnly;
             _dirty = false;
             for (final row in _cellCtrls) {
               for (final c in row) {
@@ -123,7 +131,7 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
             _cellCtrls = List.generate(
               rows,
               (r) => List.generate(
-                cols,
+                cappedCols,
                 (c) => TextEditingController(
                   text: (r < list.length && c < list[r].length)
                       ? list[r][c]
@@ -133,7 +141,7 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
             );
 
             _colHeaderCtrls = List.generate(
-              cols,
+              cappedCols,
               (i) => TextEditingController(
                 text: (i < colHeaders.length)
                     ? colHeaders[i].toString().trim()
@@ -186,7 +194,7 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
     final nav = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
     if (_isReadOnly || !_dirty) {
-      _goToStatusAddAfterSave(nav);
+      _goBackAfterTrack(nav);
       return;
     }
 
@@ -223,7 +231,7 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
       setState(() {
         _dirty = false;
       });
-      _goToStatusAddAfterSave(nav);
+      _goBackAfterTrack(nav);
       return;
     }
 
@@ -234,7 +242,7 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
       messenger.showSnackBar(
         const SnackBar(content: Text('Kaydedildi, çıkılıyor')),
       );
-      _goToStatusAddAfterSave(nav);
+      _goBackAfterTrack(nav);
     }
   }
 
@@ -250,13 +258,15 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
 
     // Yeni tablo henüz başlıksızsa otomatik create etmeyelim.
     final title = (_tableTitle ?? '').trim();
-    if ((_currentTableId == null || _currentTableId!.isEmpty) && title.isEmpty) {
+    if ((_currentTableId == null || _currentTableId!.isEmpty) &&
+        title.isEmpty) {
       return;
     }
 
     final now = DateTime.now();
     final last = _lastAutoSaveAt;
-    if (last != null && now.difference(last) < const Duration(milliseconds: 800)) {
+    if (last != null &&
+        now.difference(last) < const Duration(milliseconds: 800)) {
       return;
     }
 
@@ -298,13 +308,15 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
 
       _dirty = false;
       if (showSnackOnSuccess && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Otomatik kaydedildi')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Otomatik kaydedildi')));
       }
     } catch (e) {
-      debugPrint('AUTO-SAVE FAILED ($reason): $e');
-      debugPrintStack();
+      if (kDebugMode) {
+        debugPrint('AUTO-SAVE FAILED ($reason): $e');
+        debugPrintStack();
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -337,19 +349,6 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
     super.dispose();
   }
 
-  String _indexToLetters(int index) {
-    // 1 -> A, 26 -> Z, 27 -> AA, ...
-    var n = index;
-    final buffer = StringBuffer();
-    while (n > 0) {
-      n--; // 0-indexed
-      final charCode = 'A'.codeUnits.first + (n % 26);
-      buffer.write(String.fromCharCode(charCode));
-      n ~/= 26;
-    }
-    return buffer.toString().split('').reversed.join();
-  }
-
   int _lettersToIndex(String letters) {
     // A -> 1, Z -> 26, AA -> 27
     int result = 0;
@@ -363,7 +362,7 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
   void _addColumn() {
     if (_cols >= _maxCols) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('En fazla 20 sütun eklenebilir.')),
+        SnackBar(content: Text('En fazla $_maxCols sütun eklenebilir.')),
       );
       return;
     }
@@ -391,108 +390,52 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
     });
   }
 
-  Future<void> _deleteColumnDialog() async {
-    final ctrl = TextEditingController();
-    final colStr = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sütun Sil'),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(
-            labelText: 'Sütun (A.. veya numara)',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('İptal'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-            child: const Text('Sil'),
-          ),
-        ],
-      ),
-    );
-    if (colStr == null || colStr.isEmpty) return;
-    final col = int.tryParse(colStr) ?? _lettersToIndex(colStr);
-    if (col < 1 || col > _cols) {
-      if (!mounted) return;
+  void _deleteLastColumn() {
+    if (_cols <= _minCols) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Geçersiz sütun numarası')));
+      ).showSnackBar(SnackBar(content: Text('En az $_minCols sütun kalmalı.')));
       return;
     }
+
     setState(() {
       _markDirty();
+      final colIndex = _cols - 1;
+
       for (int r = 0; r < _rowsCount; r++) {
-        _cellCtrls[r][col - 1].dispose();
-        _cellCtrls[r].removeAt(col - 1);
+        _cellCtrls[r][colIndex].dispose();
+        _cellCtrls[r].removeAt(colIndex);
       }
-      _colHeaderCtrls[col - 1].dispose();
-      _colHeaderCtrls.removeAt(col - 1);
-      _headerOverrides.remove(col);
-      // override anahtarlarını kaydır
-      final updated = <int, String>{};
-      _headerOverrides.forEach((k, v) {
-        updated[k > col ? k - 1 : k] = v;
-      });
-      _headerOverrides
-        ..clear()
-        ..addAll(updated);
+
+      _colHeaderCtrls[colIndex].dispose();
+      _colHeaderCtrls.removeAt(colIndex);
+      _headerOverrides.remove(_cols); // 1-based
       _cols -= 1;
     });
+
+    unawaited(_autoSaveIfNeeded(reason: 'delete:last_col'));
   }
 
-  Future<void> _deleteRowDialog() async {
-    final ctrl = TextEditingController();
-    final rowStr = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Satır Sil'),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Satır No (1..N)'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('İptal'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-            child: const Text('Sil'),
-          ),
-        ],
-      ),
-    );
-    if (rowStr == null || rowStr.isEmpty) return;
-    final rowIndex = int.tryParse(rowStr) ?? -1;
-    if (rowIndex < 1 || rowIndex > _rowsCount) {
-      if (!mounted) return;
+  void _deleteLastRow() {
+    if (_rowsCount <= _minRows) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Geçersiz satır')));
+      ).showSnackBar(SnackBar(content: Text('En az $_minRows satır kalmalı.')));
       return;
     }
+
     setState(() {
       _markDirty();
-      for (final c in _cellCtrls[rowIndex - 1]) {
+      final rowIndex = _rowsCount - 1;
+      for (final c in _cellCtrls[rowIndex]) {
         c.dispose();
       }
-      _cellCtrls.removeAt(rowIndex - 1);
-      _rowOverrides.remove(rowIndex);
-      final updated = <int, String>{};
-      _rowOverrides.forEach((k, v) {
-        updated[k > rowIndex ? k - 1 : k] = v;
-      });
-      _rowOverrides
-        ..clear()
-        ..addAll(updated);
+      _cellCtrls.removeAt(rowIndex);
+      _rowOverrides.remove(_rowsCount); // 1-based
       _rowsCount -= 1;
     });
+
+    unawaited(_autoSaveIfNeeded(reason: 'delete:last_row'));
   }
 
   Future<void> _renameColumnDialog() async {
@@ -693,12 +636,14 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
       ).showSnackBar(const SnackBar(content: Text('Kaydedildi')));
       if (navigateAfterSave) {
         final nav = Navigator.of(context);
-        _goToStatusAddAfterSave(nav);
+        _goBackAfterTrack(nav);
       }
       return true;
     } catch (e) {
-      debugPrint('SAVE FAILED: $e');
-      debugPrintStack();
+      if (kDebugMode) {
+        debugPrint('SAVE FAILED: $e');
+        debugPrintStack();
+      }
       if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -718,19 +663,12 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
     }
   }
 
-  void _goToStatusAddAfterSave(NavigatorState nav) {
-    var found = false;
-    nav.popUntil((route) {
-      if (route.settings.name == AppRoutes.statusAdd) {
-        found = true;
-        return true;
-      }
-      return route.isFirst;
-    });
-
-    if (!found) {
-      nav.pushNamed(AppRoutes.statusAdd);
+  void _goBackAfterTrack(NavigatorState nav) {
+    if (nav.canPop()) {
+      nav.pop();
+      return;
     }
+    nav.pushNamed(AppRoutes.statusTrackList);
   }
 
   Future<void> _loadDialog() async {
@@ -772,14 +710,12 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
           (row) => (row as List).map((e) => e.toString()).toList(),
         )
         .toList();
-    final ownerId = data['ownerId'] as String?;
-    final uid = FirebaseAuth.instance.currentUser?.uid;
     setState(() {
       _tableTitle = (data['title'] as String?)?.trim();
       final code = (data['code'] as String?)?.trim();
       _tableCode = (code != null && code.isNotEmpty) ? code : res;
       _currentTableId = res;
-      _isReadOnly = (ownerId != null && uid != null) ? (ownerId != uid) : false;
+      _isReadOnly = widget.readOnly;
       _rowsCount = rows;
       _cols = cols;
       _dirty = false;
@@ -875,9 +811,10 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
     final int newCols = rows.isNotEmpty
         ? rows.map((r) => r.length).reduce((a, b) => a > b ? a : b)
         : 0;
+    final int cappedCols = newCols.clamp(0, _maxCols);
     setState(() {
       _rowsCount = newRows;
-      _cols = newCols;
+      _cols = cappedCols;
       _markDirty();
       for (final row in _cellCtrls) {
         for (final c in row) {
@@ -890,13 +827,16 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
       _cellCtrls = List.generate(
         newRows,
         (r) => List.generate(
-          newCols,
+          cappedCols,
           (c) => TextEditingController(
             text: (c < rows[r].length) ? rows[r][c].toString() : '',
           ),
         ),
       );
-      _colHeaderCtrls = List.generate(newCols, (_) => TextEditingController());
+      _colHeaderCtrls = List.generate(
+        cappedCols,
+        (_) => TextEditingController(),
+      );
       _headerOverrides.clear();
     });
 
@@ -940,13 +880,15 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
     );
     if (res == null || res.isEmpty) return;
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = io.File('${dir.path}/$res');
-      await file.writeAsString(csv);
+      final saved = await saveTextFile(
+        suggestedName: res,
+        content: csv,
+        mimeType: 'text/csv',
+      );
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Kaydedildi: ${file.path}')));
+        ).showSnackBar(SnackBar(content: Text('Kaydedildi: ${saved ?? res}')));
       }
     } catch (e) {
       if (mounted) {
@@ -969,124 +911,135 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
         unawaited(_handleBackNavigation());
       },
       child: Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              (_tableTitle != null && _tableTitle!.isNotEmpty)
-                  ? _tableTitle!
-                  : 'Durum Takip',
-            ),
-            if (_tableCode != null && _tableCode!.isNotEmpty)
-              DefaultTextStyle(
-                style: const TextStyle(fontSize: 12, color: Colors.white70),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Kod: ${_tableCode!}'),
-                    const SizedBox(width: 6),
-                    InkWell(
-                      onTap: () {
-                        Clipboard.setData(ClipboardData(text: _tableCode!));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Kod kopyalandı')),
-                        );
-                      },
-                      child: const Icon(
-                        Icons.copy_all,
-                        size: 16,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                (_tableTitle != null && _tableTitle!.isNotEmpty)
+                    ? _tableTitle!
+                    : 'Trans Takip',
               ),
-          ],
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            onPressed: _isReadOnly ? null : _addColumn,
-            tooltip: 'Sağa Sütun Ekle (max 20)',
-            icon: const Icon(Icons.view_column),
+              if (_tableCode != null && _tableCode!.isNotEmpty)
+                DefaultTextStyle(
+                  style: const TextStyle(fontSize: 12, color: Colors.white70),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Kod: ${_tableCode!}'),
+                      const SizedBox(width: 6),
+                      InkWell(
+                        onTap: _isReadOnly
+                            ? null
+                            : () {
+                                Clipboard.setData(
+                                  ClipboardData(text: _tableCode!),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Kod kopyalandı'),
+                                  ),
+                                );
+                              },
+                        child: const Icon(
+                          Icons.copy_all,
+                          size: 16,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ),
-          IconButton(
-            onPressed: _isReadOnly ? null : _addRow,
-            tooltip: 'Aşağı Satır Ekle (max 100)',
-            icon: const Icon(Icons.view_agenda),
-          ),
-          IconButton(
-            onPressed: () async {
-              // Önce kaydı tamamla, başarılıysa listeye dön
-              final nav = Navigator.of(context);
-              final ok = await _saveCurrentOrPrompt(navigateAfterSave: false);
-              if (!mounted) return;
-              if (ok) {
-                _goToStatusAddAfterSave(nav);
-              }
-            },
-            tooltip: 'Kaydet ve Çık',
-            icon: const Icon(Icons.save),
-          ),
-          IconButton(
-            onPressed: _loadDialog,
-            tooltip: 'Yükle (Firestore)',
-            icon: const Icon(Icons.folder_open),
-          ),
-          PopupMenuButton<String>(
-            tooltip: 'CSV',
-            itemBuilder: (ctx) {
-              final items = <PopupMenuEntry<String>>[];
-              if (!_isReadOnly) {
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          foregroundColor: Colors.white,
+          actions: [
+            IconButton(
+              onPressed: _isReadOnly ? null : _addColumn,
+              tooltip: 'Sağa Sütun Ekle (max 10)',
+              icon: const Icon(Icons.view_column),
+            ),
+            IconButton(
+              onPressed: _isReadOnly ? null : _addRow,
+              tooltip: 'Aşağı Satır Ekle (max 100)',
+              icon: const Icon(Icons.view_agenda),
+            ),
+            IconButton(
+              onPressed: _isReadOnly
+                  ? null
+                  : () async {
+                      // Önce kaydı tamamla, başarılıysa listeye dön
+                      final nav = Navigator.of(context);
+                      final ok = await _saveCurrentOrPrompt(
+                        navigateAfterSave: false,
+                      );
+                      if (!mounted) return;
+                      if (ok) {
+                        _goBackAfterTrack(nav);
+                      }
+                    },
+              tooltip: 'Kaydet ve Çık',
+              icon: const Icon(Icons.save),
+            ),
+            IconButton(
+              onPressed: _isReadOnly ? null : _loadDialog,
+              tooltip: 'Yükle (Firestore)',
+              icon: const Icon(Icons.folder_open),
+            ),
+            PopupMenuButton<String>(
+              tooltip: 'CSV',
+              enabled: !_isReadOnly,
+              itemBuilder: (ctx) {
+                final items = <PopupMenuEntry<String>>[];
+                if (!_isReadOnly) {
+                  items.addAll(const [
+                    PopupMenuItem(
+                      value: 'import_file',
+                      child: Text('CSV İçe (Dosya)'),
+                    ),
+                    PopupMenuItem(
+                      value: 'import_paste',
+                      child: Text('CSV İçe (Yapıştır)'),
+                    ),
+                  ]);
+                }
                 items.addAll(const [
                   PopupMenuItem(
-                    value: 'import_file',
-                    child: Text('CSV İçe (Dosya)'),
+                    value: 'export',
+                    child: Text('CSV Dışa (Panoya)'),
                   ),
                   PopupMenuItem(
-                    value: 'import_paste',
-                    child: Text('CSV İçe (Yapıştır)'),
+                    value: 'export_file',
+                    child: Text('CSV Dışa (Dosyaya)'),
                   ),
                 ]);
-              }
-              items.addAll(const [
-                PopupMenuItem(
-                  value: 'export',
-                  child: Text('CSV Dışa (Panoya)'),
-                ),
-                PopupMenuItem(
-                  value: 'export_file',
-                  child: Text('CSV Dışa (Dosyaya)'),
-                ),
-              ]);
-              return items;
-            },
-            onSelected: (v) {
-              switch (v) {
-                case 'import_file':
-                  if (!_isReadOnly) _importCsvFromFile();
-                  break;
-                case 'import_paste':
-                  if (!_isReadOnly) _importCsvFromPaste();
-                  break;
-                case 'export':
-                  _exportCsv();
-                  break;
-                case 'export_file':
-                  _exportCsvToFile();
-                  break;
-              }
-            },
-            icon: const Icon(Icons.file_present),
-          ),
-          if (!_isReadOnly)
+                return items;
+              },
+              onSelected: (v) {
+                switch (v) {
+                  case 'import_file':
+                    if (!_isReadOnly) _importCsvFromFile();
+                    break;
+                  case 'import_paste':
+                    if (!_isReadOnly) _importCsvFromPaste();
+                    break;
+                  case 'export':
+                    _exportCsv();
+                    break;
+                  case 'export_file':
+                    _exportCsvToFile();
+                    break;
+                }
+              },
+              icon: const Icon(Icons.file_present),
+            ),
             PopupMenuButton<String>(
               tooltip: 'Düzenleme',
+              enabled: !_isReadOnly,
               itemBuilder: (ctx) => const [
                 PopupMenuItem(value: 'del_col', child: Text('Sütun Sil')),
                 PopupMenuItem(value: 'del_row', child: Text('Satır Sil')),
@@ -1100,12 +1053,13 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
                 ),
               ],
               onSelected: (v) {
+                if (_isReadOnly) return;
                 switch (v) {
                   case 'del_col':
-                    _deleteColumnDialog();
+                    _deleteLastColumn();
                     break;
                   case 'del_row':
-                    _deleteRowDialog();
+                    _deleteLastRow();
                     break;
                   case 'ren_col':
                     _renameColumnDialog();
@@ -1117,249 +1071,280 @@ class _StatusTrackScreenState extends State<StatusTrackScreen>
               },
               icon: const Icon(Icons.edit),
             ),
-          if (_isReadOnly)
-            const Padding(
-              padding: EdgeInsets.only(right: 8.0),
-              child: Icon(Icons.visibility, color: Colors.white70),
-            ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  stops: const [0.0, 0.55, 1.0],
-                  colors: [
-                    Colors.black,
-                    Color.alphaBlend(
-                      primary.withValues(alpha: 0.35),
+            if (_isReadOnly)
+              const Padding(
+                padding: EdgeInsets.only(right: 8.0),
+                child: Icon(Icons.visibility, color: Colors.white70),
+              ),
+          ],
+        ),
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    stops: const [0.0, 0.55, 1.0],
+                    colors: [
                       Colors.black,
+                      Color.alphaBlend(
+                        primary.withValues(alpha: 0.35),
+                        Colors.black,
+                      ),
+                      primary.withValues(alpha: 0.22),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Builder(
+                        builder: (context) {
+                          // PERF: A full `Table` builds every cell widget eagerly.
+                          // With 100x20 it's 2000+ TextFields and feels like "loading".
+                          // This layout virtualizes rows with SliverList so only visible
+                          // rows build.
+
+                          final totalWidth = 90 + (_cols * _colWidth);
+
+                          final headerBg = Color.alphaBlend(
+                            Colors.black.withValues(alpha: 0.35),
+                            primary,
+                          );
+
+                          Widget buildCellBox({
+                            required Widget child,
+                            required double width,
+                            required double height,
+                            bool header = false,
+                          }) {
+                            return Container(
+                              width: width,
+                              height: height,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: header ? headerBg : Colors.white,
+                                border: Border.all(
+                                  color: primary.withValues(alpha: 0.45),
+                                  width: 1,
+                                ),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                              ),
+                              child: child,
+                            );
+                          }
+
+                          Widget buildHeaderRow() {
+                            return Row(
+                              children: [
+                                buildCellBox(
+                                  width: 90,
+                                  height: _rowHeight,
+                                  header: true,
+                                  child: const Text(
+                                    '',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                                for (int i = 1; i <= _cols; i++)
+                                  buildCellBox(
+                                    width: _colWidth,
+                                    height: _rowHeight,
+                                    header: true,
+                                    child: TextField(
+                                      controller: _colHeaderCtrls[i - 1],
+                                      readOnly: _isReadOnly,
+                                      enabled: !_isReadOnly,
+                                      cursorColor: Colors.white,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                      decoration: InputDecoration(
+                                        isDense: true,
+                                        hintText: i.toString(),
+                                        hintStyle: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                        border: InputBorder.none,
+                                      ),
+                                      onChanged: _isReadOnly
+                                          ? null
+                                          : (v) {
+                                              _markDirty();
+                                              final t = v.trim();
+                                              if (t.isEmpty) {
+                                                _headerOverrides.remove(i);
+                                              } else {
+                                                _headerOverrides[i] = t;
+                                              }
+                                              unawaited(
+                                                _autoSaveIfNeeded(
+                                                  reason: 'edit:header',
+                                                ),
+                                              );
+                                            },
+                                    ),
+                                  ),
+                              ],
+                            );
+                          }
+
+                          Widget buildDataRow(int r) {
+                            return Row(
+                              children: [
+                                buildCellBox(
+                                  width: 90,
+                                  height: _rowHeight,
+                                  header: true,
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      (_rowOverrides[r + 1] ??
+                                          (r + 1).toString()),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                for (int c = 0; c < _cols; c++)
+                                  buildCellBox(
+                                    width: _colWidth,
+                                    height: _rowHeight,
+                                    child: TextField(
+                                      controller: _cellCtrls[r][c],
+                                      readOnly: _isReadOnly,
+                                      enabled: !_isReadOnly,
+                                      maxLines: 1,
+                                      cursorColor: Colors.black,
+                                      style: const TextStyle(
+                                        color: Colors.black87,
+                                      ),
+                                      decoration: const InputDecoration(
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 12,
+                                        ),
+                                        border: InputBorder.none,
+                                      ),
+                                      onChanged: _isReadOnly
+                                          ? null
+                                          : (_) {
+                                              _markDirty();
+                                              unawaited(
+                                                _autoSaveIfNeeded(
+                                                  reason: 'edit:cell',
+                                                ),
+                                              );
+                                            },
+                                    ),
+                                  ),
+                              ],
+                            );
+                          }
+
+                          final content = SizedBox(
+                            width: totalWidth,
+                            child: CustomScrollView(
+                              controller: _vScrollCtrl,
+                              slivers: [
+                                SliverToBoxAdapter(child: buildHeaderRow()),
+                                SliverList.builder(
+                                  itemCount: _rowsCount,
+                                  itemBuilder: (ctx, r) => buildDataRow(r),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          final horizontal = SingleChildScrollView(
+                            controller: _hScrollCtrl,
+                            scrollDirection: Axis.horizontal,
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                minWidth:
+                                    MediaQuery.of(context).size.width - 24,
+                                minHeight:
+                                    MediaQuery.of(context).size.height * 0.5,
+                              ),
+                              child: RepaintBoundary(child: content),
+                            ),
+                          );
+
+                          return DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Scrollbar(
+                                controller: _hScrollCtrl,
+                                thumbVisibility: true,
+                                child: Scrollbar(
+                                  controller: _vScrollCtrl,
+                                  thumbVisibility: true,
+                                  notificationPredicate: (n) => n.depth == 1,
+                                  child: horizontal,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                    primary.withValues(alpha: 0.22),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Text('Sütun Genişliği'),
+                        Expanded(
+                          child: Slider(
+                            value: _colWidth,
+                            min: 100,
+                            max: 300,
+                            divisions: 20,
+                            label: _colWidth.round().toString(),
+                            onChanged: (v) => setState(() => _colWidth = v),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        const Text('Satır Yüksekliği'),
+                        Expanded(
+                          child: Slider(
+                            value: _rowHeight,
+                            min: 32,
+                            max: 96,
+                            divisions: 16,
+                            label: _rowHeight.round().toString(),
+                            onChanged: (v) => setState(() => _rowHeight = v),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
             ),
-          ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Builder(
-                      builder: (context) {
-                        // PERF: A full `Table` builds every cell widget eagerly.
-                        // With 100x20 it's 2000+ TextFields and feels like "loading".
-                        // This layout virtualizes rows with SliverList so only visible
-                        // rows build.
-
-                        final totalWidth = 90 + (_cols * _colWidth);
-
-                        Widget buildCellBox({
-                          required Widget child,
-                          required double width,
-                          required double height,
-                          bool header = false,
-                        }) {
-                          return Container(
-                            width: width,
-                            height: height,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: header
-                                  ? Colors.black.withValues(alpha: 0.25)
-                                  : Colors.black.withValues(alpha: 0.10),
-                              border: Border.all(
-                                color: primary.withValues(alpha: 0.45),
-                                width: 1,
-                              ),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                            child: child,
-                          );
-                        }
-
-                        Widget buildHeaderRow() {
-                          return Row(
-                            children: [
-                              buildCellBox(
-                                width: 90,
-                                height: _rowHeight,
-                                header: true,
-                                child: const Text('', style: TextStyle(color: Colors.white)),
-                              ),
-                              for (int i = 1; i <= _cols; i++)
-                                buildCellBox(
-                                  width: _colWidth,
-                                  height: _rowHeight,
-                                  header: true,
-                                  child: TextField(
-                                    controller: _colHeaderCtrls[i - 1],
-                                    readOnly: _isReadOnly,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                    decoration: InputDecoration(
-                                      isDense: true,
-                                      hintText: _indexToLetters(i),
-                                      hintStyle: const TextStyle(
-                                        color: Colors.white54,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                      border: InputBorder.none,
-                                    ),
-                                    onChanged: _isReadOnly
-                                        ? null
-                                        : (v) {
-                                            _markDirty();
-                                            final t = v.trim();
-                                            if (t.isEmpty) {
-                                              _headerOverrides.remove(i);
-                                            } else {
-                                              _headerOverrides[i] = t;
-                                            }
-                                            unawaited(
-                                              _autoSaveIfNeeded(reason: 'edit:header'),
-                                            );
-                                          },
-                                  ),
-                                ),
-                            ],
-                          );
-                        }
-
-                        Widget buildDataRow(int r) {
-                          return Row(
-                            children: [
-                              buildCellBox(
-                                width: 90,
-                                height: _rowHeight,
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    (_rowOverrides[r + 1] ?? (r + 1).toString()),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              for (int c = 0; c < _cols; c++)
-                                buildCellBox(
-                                  width: _colWidth,
-                                  height: _rowHeight,
-                                  child: TextField(
-                                    controller: _cellCtrls[r][c],
-                                    readOnly: _isReadOnly,
-                                    maxLines: 1,
-                                    style: const TextStyle(color: Colors.white),
-                                    decoration: const InputDecoration(
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 12,
-                                      ),
-                                      border: InputBorder.none,
-                                    ),
-                                    onChanged: _isReadOnly
-                                        ? null
-                                        : (_) {
-                                            _markDirty();
-                                            unawaited(
-                                              _autoSaveIfNeeded(reason: 'edit:cell'),
-                                            );
-                                          },
-                                  ),
-                                ),
-                            ],
-                          );
-                        }
-
-                        final content = SizedBox(
-                          width: totalWidth,
-                          child: CustomScrollView(
-                            controller: _vScrollCtrl,
-                            slivers: [
-                              SliverToBoxAdapter(child: buildHeaderRow()),
-                              SliverList.builder(
-                                itemCount: _rowsCount,
-                                itemBuilder: (ctx, r) => buildDataRow(r),
-                              ),
-                            ],
-                          ),
-                        );
-
-                        final horizontal = SingleChildScrollView(
-                          controller: _hScrollCtrl,
-                          scrollDirection: Axis.horizontal,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minWidth: MediaQuery.of(context).size.width - 24,
-                              minHeight: MediaQuery.of(context).size.height * 0.5,
-                            ),
-                            child: RepaintBoundary(child: content),
-                          ),
-                        );
-
-                        return Scrollbar(
-                          controller: _hScrollCtrl,
-                          thumbVisibility: true,
-                          child: Scrollbar(
-                            controller: _vScrollCtrl,
-                            thumbVisibility: true,
-                            notificationPredicate: (n) => n.depth == 1,
-                            child: horizontal,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      const Text('Sütun Genişliği'),
-                      Expanded(
-                        child: Slider(
-                          value: _colWidth,
-                          min: 100,
-                          max: 300,
-                          divisions: 20,
-                          label: _colWidth.round().toString(),
-                          onChanged: (v) => setState(() => _colWidth = v),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      const Text('Satır Yüksekliği'),
-                      Expanded(
-                        child: Slider(
-                          value: _rowHeight,
-                          min: 32,
-                          max: 96,
-                          divisions: 16,
-                          label: _rowHeight.round().toString(),
-                          onChanged: (v) => setState(() => _rowHeight = v),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }

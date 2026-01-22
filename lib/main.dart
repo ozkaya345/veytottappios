@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:ottapp/l10n/app_localizations.dart';
 
 import 'core/localization/locale_controller.dart';
@@ -15,8 +16,10 @@ Future<void> main() async {
     await FirebaseBootstrap.init();
   } catch (e, st) {
     // Firebase init hatasını gizlemeyelim; aksi halde "kaydet" her yerde bozulmuş gibi görünür.
-    debugPrint('Firebase init FAILED: $e');
-    debugPrintStack(stackTrace: st);
+    if (kDebugMode) {
+      debugPrint('Firebase init FAILED: $e');
+      debugPrintStack(stackTrace: st);
+    }
   }
   try {
     await LocaleController.instance.init();

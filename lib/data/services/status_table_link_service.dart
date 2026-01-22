@@ -38,4 +38,17 @@ final class StatusTableLinkService {
         .where('userId', isEqualTo: uid)
         .snapshots();
   }
+
+  static Future<void> unlinkTableFromCurrentUser({required String tableId}) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      throw FirebaseAuthException(code: 'no-user', message: 'Oturum bulunamadı');
+    }
+
+    final id = tableId.trim();
+    if (id.isEmpty) return;
+
+    final docId = _linkDocId(userId: uid, tableId: id);
+    await _db.collection('status_table_links').doc(docId).delete();
+  }
 }

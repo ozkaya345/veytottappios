@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import '../../data/services/firebase_bootstrap.dart';
 import '../../core/navigation/app_routes.dart';
+import '../../data/services/admin_auth_service.dart';
+import '../../data/services/admin_access_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -57,13 +60,16 @@ class _SplashScreenState extends State<SplashScreen> {
       });
       _timers.add(timer);
 
-      future.then((_) {
-        if (!completer.isCompleted) completer.complete();
-      }).catchError((_) {
-        if (!completer.isCompleted) completer.complete();
-      }).whenComplete(() {
-        timer.cancel();
-      });
+      future
+          .then((_) {
+            if (!completer.isCompleted) completer.complete();
+          })
+          .catchError((_) {
+            if (!completer.isCompleted) completer.complete();
+          })
+          .whenComplete(() {
+            timer.cancel();
+          });
 
       return completer.future;
     }
@@ -89,17 +95,45 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (!mounted) return;
 
-    bool isSignedIn = false;
-    try {
-      isSignedIn =
-          Firebase.apps.isNotEmpty && FirebaseAuth.instance.currentUser != null;
-    } catch (_) {
-      isSignedIn = false;
+    if (kIsWeb) {
+      final qp = Uri.base.queryParameters;
+      final mode = qp['mode'];
+      final oobCode = qp['oobCode'];
+      if (mode == 'resetPassword' &&
+          oobCode != null &&
+          oobCode.trim().isNotEmpty) {
+        Navigator.of(context).pushReplacementNamed(
+          AppRoutes.resetPassword,
+          arguments: oobCode.trim(),
+        );
+        return;
+      }
     }
 
-    Navigator.of(
-      context,
-    ).pushReplacementNamed(isSignedIn ? AppRoutes.home : AppRoutes.login);
+    // Güvenlik gereği her açılışta şifre ekranı gelsin.
+    // Oturum varsa bile otomatik Home'a geçme.
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        await FirebaseAuth.instance.signOut();
+      }
+    } catch (_) {
+      // signOut başarısız olsa bile login ekranına gidelim.
+    }
+
+    // UI düzeyinde admin kilidini her açılışta kapat.
+    AdminAccessService.lock();
+
+    // Admin oturumunu da temizle ki yeni şifre her seferinde geçerli olsun.
+    try {
+      final adminAuth = await AdminAuthService.adminAuth();
+      await adminAuth.signOut();
+    } catch (_) {
+      // ignore
+    }
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacementNamed(AppRoutes.login);
   }
 
   @override
@@ -114,11 +148,27 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SizedBox.expand(
-        child: Image.asset(
-          'assets/images/splash.png',
-          fit: BoxFit.cover,
-          alignment: Alignment.center,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final maxWidth = constraints.maxWidth;
+            final maxHeight = constraints.maxHeight;
+
+            final targetWidth = (maxWidth * 0.90).clamp(300.0, 650.0);
+            final targetHeight = (maxHeight * 0.90).clamp(300.0, 650.0);
+
+            return Center(
+              child: SizedBox(
+                width: targetWidth,
+                height: targetHeight,
+                child: Image.asset(
+                  'assets/images/splash.png',
+                  fit: BoxFit.contain,
+                  alignment: Alignment.center,
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

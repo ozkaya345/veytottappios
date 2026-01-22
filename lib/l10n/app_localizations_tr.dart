@@ -18,6 +18,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get loginEmailOrUsernameRequired => 'E-posta/kullanıcı adı gerekli';
 
   @override
+  String get rememberMe => 'Beni hatırla';
+
+  @override
   String get passwordLabel => 'Şifre';
 
   @override
@@ -27,7 +30,8 @@ class AppLocalizationsTr extends AppLocalizations {
   String get forgotPassword => 'Şifremi Unuttum';
 
   @override
-  String get forgotPasswordSoon => 'Şifremi unuttum (yakında)';
+  String get forgotPasswordSoon =>
+      'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.';
 
   @override
   String get signIn => 'Giriş Yap';
@@ -42,7 +46,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get continueWithGoogle => 'Google ile Devam Et';
 
   @override
-  String get continueWithGoogleTodo => 'Google ile devam et (TODO)';
+  String get continueWithGoogleTodo => 'Google ile devam et';
 
   @override
   String get noAccountQuestion => 'Hesabınız yok mu?';
@@ -88,7 +92,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get homeNewStatus => 'Yeni Durum Ekle';
 
   @override
-  String get homeTrackStatus => 'Durum Takip';
+  String get homeTrackStatus => 'Trans Takip';
 
   @override
   String get personnelTitle => 'Personel';

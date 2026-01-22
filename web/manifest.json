@@ -1,6 +1,6 @@
 {
-    "name": "ottapp",
-    "short_name": "ottapp",
+    "name": "OTT",
+    "short_name": "OTT",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#000000",

@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 // Kod artık oluşturma sonrası atanacağı için ek hizmetlere gerek yok
 import '../../core/navigation/app_routes.dart';
 import '../../data/services/status_table_service.dart';
+import '../../data/services/admin_auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class StatusAddScreen extends StatefulWidget {
-  const StatusAddScreen({super.key});
+  const StatusAddScreen({super.key, this.useAdminAuth = false});
+
+  final bool useAdminAuth;
 
   @override
   State<StatusAddScreen> createState() => _StatusAddScreenState();
@@ -18,9 +21,26 @@ class _StatusAddScreenState extends State<StatusAddScreen> {
   final List<_PendingStatusTable> _pendingTables = [];
   bool _useUnorderedFallback = false;
 
+  String? _adminUid;
+
   @override
   void initState() {
     super.initState();
+
+    if (widget.useAdminAuth) {
+      () async {
+        try {
+          final adminAuth = await AdminAuthService.adminAuth();
+          final uid = adminAuth.currentUser?.uid;
+          if (!mounted) return;
+          setState(() {
+            _adminUid = uid;
+          });
+        } catch (_) {
+          // ignore
+        }
+      }();
+    }
   }
 
   @override
@@ -30,7 +50,9 @@ class _StatusAddScreenState extends State<StatusAddScreen> {
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _watchTables() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    // Admin panelinde admin oturumunun uid'si ile filtrele.
+    // Normal kullanımda default oturum uid'si.
+    final uid = widget.useAdminAuth ? _adminUid : FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || uid.isEmpty) {
       return const Stream.empty();
     }
@@ -89,12 +111,20 @@ class _StatusAddScreenState extends State<StatusAddScreen> {
       const cols = 8;
       final data = List.generate(rows, (_) => List.generate(cols, (_) => ''));
       final colHeaders = List<String>.generate(cols, (_) => '');
+
+      String? ownerIdOverride;
+      if (widget.useAdminAuth) {
+        final adminAuth = await AdminAuthService.adminAuth();
+        ownerIdOverride = adminAuth.currentUser?.uid;
+      }
+
       final res = await StatusTableService.createTable(
         rows: rows,
         cols: cols,
         data: data,
         title: title,
         colHeaders: colHeaders,
+        ownerIdOverride: ownerIdOverride,
       );
 
       final id = res['id'] ?? '';
@@ -508,7 +538,10 @@ class _StatusAddScreenState extends State<StatusAddScreen> {
                                               onPressed: () {
                                                 Navigator.of(context).pushNamed(
                                                   AppRoutes.statusTrack,
-                                                  arguments: id,
+                                                    arguments: {
+                                                      'tableId': id,
+                                                      'readOnly': false,
+                                                    },
                                                 );
                                               },
                                               icon: const Icon(Icons.login),

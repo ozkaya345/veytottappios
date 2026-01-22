@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../core/navigation/app_routes.dart';
 import '../../data/services/status_table_link_service.dart';
@@ -55,7 +54,7 @@ class _StatusTrackListScreenState extends State<StatusTrackListScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Durum Takip'),
+        title: const Text('Trans Takip'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: Colors.white,
@@ -110,12 +109,16 @@ class _StatusTrackListScreenState extends State<StatusTrackListScreen> {
                         }
 
                         final idsInOrder = links
-                            .map((d) => (d.data()['tableId'] as String?)?.trim())
+                            .map(
+                              (d) => (d.data()['tableId'] as String?)?.trim(),
+                            )
                             .whereType<String>()
                             .where((e) => e.isNotEmpty)
                             .toList(growable: false);
 
-                        final uniqueIds = idsInOrder.toSet().toList(growable: false);
+                        final uniqueIds = idsInOrder.toSet().toList(
+                          growable: false,
+                        );
                         final sortedIds = [...uniqueIds]..sort();
                         final key = sortedIds.join('|');
 
@@ -132,7 +135,9 @@ class _StatusTrackListScreenState extends State<StatusTrackListScreen> {
                         return FutureBuilder<Map<String, Map<String, dynamic>>>(
                           future: _tablesFuture ?? _fetchTablesByIds(sortedIds),
                           builder: (context, tablesSnap) {
-                            final tableMap = tablesSnap.data ?? const <String, Map<String, dynamic>>{};
+                            final tableMap =
+                                tablesSnap.data ??
+                                const <String, Map<String, dynamic>>{};
 
                             return ListView.separated(
                               itemCount: links.length,
@@ -140,112 +145,143 @@ class _StatusTrackListScreenState extends State<StatusTrackListScreen> {
                                   const SizedBox(height: 12),
                               itemBuilder: (ctx, idx) {
                                 final link = links[idx].data();
-                                final tableId = (link['tableId'] as String?)?.trim();
+                                final tableId = (link['tableId'] as String?)
+                                    ?.trim();
                                 final code = (link['code'] as String?)?.trim();
                                 if (tableId == null || tableId.isEmpty) {
                                   return const SizedBox.shrink();
                                 }
 
                                 final table = tableMap[tableId];
-                                final title = (table?['title'] as String?)?.trim();
+                                final title = (table?['title'] as String?)
+                                    ?.trim();
                                 final shownCode =
                                     (table?['code'] as String?)?.trim() ??
                                     code ??
                                     tableId;
-                                final ownerId = (table?['ownerId'] as String?)?.trim();
-                                final uid = FirebaseAuth.instance.currentUser?.uid;
-                                final mine = (uid != null && ownerId != null && uid == ownerId);
 
                                 final shownTitle =
-                                  (title == null || title.isEmpty) ? 'Başlıksız' : title;
+                                    (title == null || title.isEmpty)
+                                    ? 'Başlıksız'
+                                    : title;
 
-                                return Container(
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: primary.withValues(alpha: 0.45),
-                                    ),
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        Colors.black.withValues(alpha: 0.55),
-                                        Color.alphaBlend(
-                                          primary.withValues(alpha: 0.22),
-                                          Colors.black,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              shownTitle,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: theme.textTheme.titleMedium?.copyWith(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                          ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 6,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.black.withValues(alpha: 0.30),
-                                              borderRadius: BorderRadius.circular(20),
-                                              border: Border.all(color: Colors.white24),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Text(
-                                                  'Kod: $shownCode',
-                                                  style: const TextStyle(color: Colors.white70),
-                                                ),
-                                                const SizedBox(width: 6),
-                                                InkWell(
-                                                  onTap: () {
-                                                    Clipboard.setData(ClipboardData(text: shownCode));
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      const SnackBar(content: Text('Kod kopyalandı')),
-                                                    );
-                                                  },
-                                                  child: const Icon(
-                                                    Icons.copy_all,
-                                                    size: 18,
-                                                    color: Colors.white70,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
+                                return InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: primary.withValues(alpha: 0.45),
+                                      ),
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Colors.black.withValues(alpha: 0.55),
+                                          Color.alphaBlend(
+                                            primary.withValues(alpha: 0.22),
+                                            Colors.black,
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 12),
-                                      Align(
-                                        alignment: Alignment.centerLeft,
-                                        child: ElevatedButton.icon(
-                                          onPressed: () {
-                                            Navigator.of(context).pushNamed(
-                                              AppRoutes.statusTrack,
-                                              arguments: tableId,
-                                            );
-                                          },
-                                          icon: Icon(mine ? Icons.edit : Icons.visibility),
-                                          label: Text(mine ? 'Aç' : 'Görüntüle'),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                shownTitle,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: theme
+                                                    .textTheme
+                                                    .titleMedium
+                                                    ?.copyWith(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                    ),
+                                              ),
+                                            ),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 6,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withValues(
+                                                  alpha: 0.30,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                                border: Border.all(
+                                                  color: Colors.white24,
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    'Kod: $shownCode',
+                                                    style: const TextStyle(
+                                                      color: Colors.white70,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  InkWell(
+                                                    onTap: () {
+                                                      Clipboard.setData(
+                                                        ClipboardData(
+                                                          text: shownCode,
+                                                        ),
+                                                      );
+                                                      ScaffoldMessenger.of(
+                                                        context,
+                                                      ).showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                            'Kod kopyalandı',
+                                                          ),
+                                                        ),
+                                                      );
+                                                    },
+                                                    child: const Icon(
+                                                      Icons.copy_all,
+                                                      size: 18,
+                                                      color: Colors.white70,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(height: 12),
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: ElevatedButton.icon(
+                                            onPressed: () {
+                                              Navigator.of(context).pushNamed(
+                                                AppRoutes.statusTrack,
+                                                arguments: {
+                                                  'tableId': tableId,
+                                                  'readOnly': true,
+                                                },
+                                              );
+                                            },
+                                            icon: const Icon(Icons.visibility),
+                                            label: const Text('Görüntüle'),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 );
                               },

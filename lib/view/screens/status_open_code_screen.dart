@@ -18,6 +18,51 @@ class _StatusOpenCodeScreenState extends State<StatusOpenCodeScreen> {
   final _codeCtrl = TextEditingController();
   bool _saving = false;
 
+  Future<void> _confirmAndUnlink({
+    required String tableId,
+    required String code,
+  }) async {
+    if (tableId.trim().isEmpty) return;
+
+    final res = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sil'),
+        content: Text(
+          (code.trim().isEmpty)
+              ? 'Bu kartı listenden kaldırmak istiyor musun?'
+              : 'Bu kodu listenden silmek istiyor musun?\n\n$code',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('İptal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sil'),
+          ),
+        ],
+      ),
+    );
+
+    if (res != true) return;
+    if (!mounted) return;
+
+    try {
+      await StatusTableLinkService.unlinkTableFromCurrentUser(tableId: tableId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Listeden silindi')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Silinemedi: $e')),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _codeCtrl.dispose();
@@ -190,15 +235,21 @@ class _StatusOpenCodeScreenState extends State<StatusOpenCodeScreen> {
                             final dateStr = ts != null
                                 ? '${ts.year}-${ts.month.toString().padLeft(2, '0')}-${ts.day.toString().padLeft(2, '0')}'
                                 : '';
-                            return Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.white24),
-                                color: Colors.black.withValues(alpha: 0.25),
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onLongPress: () => _confirmAndUnlink(
+                                tableId: tableId,
+                                code: code,
                               ),
-                              child: Row(
-                                children: [
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.white24),
+                                  color: Colors.black.withValues(alpha: 0.25),
+                                ),
+                                child: Row(
+                                  children: [
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,7 +298,8 @@ class _StatusOpenCodeScreenState extends State<StatusOpenCodeScreen> {
                                       );
                                     },
                                   ),
-                                ],
+                                  ],
+                                ),
                               ),
                             );
                           },

@@ -127,37 +127,24 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _PillButton(
-                          label: 'Durum Ekle',
-                          onPressed: () {
-                            Navigator.of(
-                              context,
-                            ).pushNamed(AppRoutes.statusAdd);
-                          },
-                          icon: Icons.add_circle_outline,
+                  const SizedBox(height: 14),
+                  Flexible(
+                    fit: FlexFit.loose,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      child: Center(
+                        child: Image.asset(
+                          'assets/images/home_logo.png',
+                          height: 200,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, _, __) => const SizedBox(),
                         ),
                       ),
-                    ],
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      Expanded(
-                        child: _PillButton(
-                          label: l10n.personnelTitle,
-                          onPressed: () {
-                            Navigator.of(
-                              context,
-                            ).pushNamed(AppRoutes.personnel);
-                          },
-                          icon: Icons.people_outline,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
                       Expanded(
                         child: _PillButton(
                           label: 'Kod ile Aç',
@@ -187,19 +174,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 8),
                 ],
-              ),
-            ),
-          ),
-          const Align(
-            alignment: Alignment(0, 0.6),
-            child: SafeArea(
-              child: Padding(
-                padding: EdgeInsets.zero,
-                child: Image(
-                  image: AssetImage('assets/images/logo.png'),
-                  height: 260,
-                ),
               ),
             ),
           ),
@@ -208,26 +184,100 @@ class _HomeScreenState extends State<HomeScreen> {
               alignment: Alignment.topRight,
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    Navigator.of(
-                      context,
-                      rootNavigator: true,
-                    ).pushNamed(AppRoutes.profile);
-                  },
-                  child: const SizedBox(
-                    width: 56,
-                    height: 56,
-                    child: Center(
-                      child: IgnorePointer(child: _ProfileMenuIcon(size: 44)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _TopActionButton(
+                      label: 'Yönetici',
+                      icon: Icons.admin_panel_settings_outlined,
+                      onPressed: () {
+                        Navigator.of(context).pushNamed(AppRoutes.adminLogin);
+                      },
                     ),
-                  ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        Navigator.of(
+                          context,
+                          rootNavigator: true,
+                        ).pushNamed(AppRoutes.profile);
+                      },
+                      child: const SizedBox(
+                        width: 56,
+                        height: 56,
+                        child: Center(
+                          child: IgnorePointer(
+                            child: _ProfileMenuIcon(size: 44),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TopActionButton extends StatelessWidget {
+  const _TopActionButton({
+    required this.label,
+    required this.onPressed,
+    this.icon,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            color: Colors.black.withValues(alpha: 0.25),
+            border: Border.all(
+              color: primary.withValues(alpha: 0.60),
+              width: 1.2,
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: 18,
+                  color: Colors.white.withValues(alpha: 0.92),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                label,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.92),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
