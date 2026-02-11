@@ -1,0 +1,81 @@
+# Codemagic CI configuration for veytottappios
+# Simulator build uses x86_64 by excluding arm64 to satisfy Appetize.
+
+workflows:
+  ios_simulator_build:
+    name: iOS (Simulator) Build
+    instance_type: mac_mini_m1
+    max_build_duration: 60
+
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $CM_BUILD_DIR/.dart_tool
+
+    scripts:
+      - name: Flutter doctor
+        script: |
+          flutter doctor -v
+
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+
+      # Simulator build does not require code signing.
+      - name: Build iOS app for simulator
+        script: |
+          # Force x86_64 slice for Appetize (exclude arm64 simulator arch)
+          export "EXCLUDED_ARCHS[sdk=iphonesimulator*]=arm64"
+          export ONLY_ACTIVE_ARCH=NO
+          flutter build ios --simulator --release
+
+      - name: Verify arch and zip simulator app
+        script: |
+          cd build/ios/iphonesimulator
+          lipo -info Runner.app/Runner
+          rm -f Runner.zip
+          zip -r Runner.zip Runner.app
+
+    artifacts:
+      - build/ios/iphonesimulator/*.app
+      - build/ios/iphonesimulator/Runner.zip
+      - build/ios/iphonesimulator/**/*.dSYM
+      - flutter_drive.log
+
+  ios_ipa_release:
+    name: iOS (IPA) Release
+    instance_type: mac_mini_m1
+    max_build_duration: 90
+
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $CM_BUILD_DIR/.dart_tool
+
+    triggering:
+      events:
+        - manual
+
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+
+      # NOTE: This requires signing to be configured in Codemagic.
+      - name: Build IPA
+        script: |
+          flutter build ipa --release
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/archive/*.xcarchive
