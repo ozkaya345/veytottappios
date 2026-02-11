@@ -44,10 +44,21 @@ workflows:
       # Simulator build does not require code signing.
       - name: Build iOS app for simulator
         script: |
+          # Force x86_64 slice for Appetize (exclude arm64 simulator arch)
+          export "EXCLUDED_ARCHS[sdk=iphonesimulator*]=arm64"
+          export ONLY_ACTIVE_ARCH=NO
           flutter build ios --simulator --release
+
+      - name: Verify arch and zip simulator app
+        script: |
+          cd build/ios/iphonesimulator
+          lipo -info Runner.app/Runner
+          rm -f Runner.zip
+          zip -r Runner.zip Runner.app
 
     artifacts:
       - build/ios/iphonesimulator/*.app
+      - build/ios/iphonesimulator/Runner.zip
       - build/ios/iphonesimulator/**/*.dSYM
       - flutter_drive.log
 
